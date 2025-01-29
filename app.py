@@ -1,42 +1,51 @@
-from dotenv import load_dotenv
 import streamlit as st
 import chain
-
-
-load_dotenv()
+import vectordb
 
 def poem_generator_app():
-    '''
-    function to  generate_poem_app
-    '''
-    with st.form("poem_generator"):
-        topic=st.text_input("Enter topic for Poem")
-        submitted=st.form_submit_button("Generate Poem")
+    """
+    Generates Poem Generator App with Streamlit, providing user input and displaying output.
+    Includes a sidebar with two sections: Poem Generator and File Ingestion for RAG.
+    """
 
-        if(submitted):
-            response=chain.generate_poem(topic)
-            st.info(response)
+    # Sidebar configuration
+    st.sidebar.title("Menu")
+    section = st.sidebar.radio(
+        "Choose a section:",
+        ("Poem Generator RAG", "RAG File Ingestion")
+    )
+
+    # db initialization
+    vectordatabase = vectordb.initialize_chroma()
+
+    # Condition for poem generation page
+    if section == "Poem Generator RAG":
+      st.title("Lets generate a poem ! 👋")
+
+      with st.form("poem_generator"):
+          topic = st.text_input(
+            "Enter a topic for the poem:"
+          )
+          submitted = st.form_submit_button("Submit")
+
+          toggle_state = st.checkbox("Check me to enable RAG")
+
+          if submitted:
+              if toggle_state:
+                   response = chain.generate_poem_rag_chain(topic, vectordatabase)
+              else:
+                  response = chain.generate_poem_chain(topic)
+             
+              st.info(response)
+    
+    # Condition for RAG File Ingestion
+    elif section == "RAG File Ingestion":
+        st.title("RAG File Ingestion")
+
+        uploaded_file = st.file_uploader("Upload a file:", type=["txt", "csv", "docx", "pdf"])
+
+        if uploaded_file is not None:
+            vectordb.store_pdf_in_chroma(uploaded_file, vectordatabase)
+            st.success(f"File '{uploaded_file.name}' uploaded  and file embedding stored in vectordb successfully!")
 
 poem_generator_app()
-
-# def quiz_generator_app():
-#     '''
-#     function to generate quiz with level and field
-#     '''
-#     st.title("🎓 Quiz Generator")
-#     st.markdown("""
-#     Welcome to the **Quiz Generator App**!  
-#     Select a difficulty level and enter a field of study to generate a customized quiz.
-#     """)
-#     with st.form("quiz_generator"):
-#         levels=["Hard","Medium","Easy"]
-#         level = st.selectbox("📊 Select Difficulty Level for Quiz", levels)
-#         field = st.text_input("📘 Enter the Field of Study (e.g., Science, Maths, History)")
-#         submitted=st.form_submit_button("Generate quiz")
-
-#         if(submitted):
-#             response=chain.generate_quiz(level,field)
-#             st.info(response)
-
-
-# quiz_generator_app()

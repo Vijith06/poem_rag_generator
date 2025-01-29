@@ -1,19 +1,25 @@
-from model import create_chat_groq
-import prompt 
+from langchain_core.output_parsers import StrOutputParser
+import model
+import prompt
+import vectordb
 
 
-def generate_poem(topic):
-    '''
-    function to  generate_poem
-     
+#### GENERATION ####
+def generate_poem_chain(topic):
+    """
+    Generate Poem using basic prompt LLM chain
+
     Args:
-        topic(str): Topic of the poem
+        topic - topic for the poem
 
-    Returns : 
-        response.content(str)
-    '''
-    prompt_template=prompt.poem_generator_prompt_from_hub()
-    llm=create_chat_groq()
+    Returns:
+        response.content -> str
+    """
+        
+    llm = model.create_chat_groq_model()
+
+    prompt_template = prompt.poem_generator_prompt()
+    # prompt_template = prompts.poem_generator_prompt_from_hub()
 
     chain = prompt_template | llm
 
@@ -22,27 +28,37 @@ def generate_poem(topic):
     })
     return response.content
 
-# def generate_quiz(level,field):
-#     '''
-#     function to  generate quiz
-     
-#     Args:
-#         level(str)= Level of the quiz
-#         fiels(str)=At which subject(like maths,science and etc..)
 
-#     Returns : 
-#           response.content(str)
+#### RETRIEVAL and GENERATION ####
 
-#     '''
+def generate_poem_rag_chain(topic, vector):
+    """
+    Creates a RAG chain for retrieval and generation.
+
+    Args:
+        topic - topic for retrieval
+        vectorstore ->  Instance of vector store 
+
+    Returns:
+        rag_chain -> rag chain
+    """
+    # Prompt
+    prompt_template = prompt.poem_generator_rag_prompt()
+
+    # LLM
+    llm = model.create_chat_groq_model()
+
+    # Post-processing
+    def format_docs(docs):
+        return "\n\n".join(doc.page_content for doc in docs)
     
-#     prompt_template=prompt.quiz_generator_prompt_from_hub()
-#     llm=create_chat_groq()
+    retriever = vectordb.retrieve_from_chroma(topic, vectorstore=vector)
+    # Chain
+    rag_chain = prompt_template| llm | StrOutputParser()
 
-#     chain = prompt_template | llm
+    response = rag_chain.invoke({
+        "context" : format_docs(retriever),
+        "topic": topic
+    })    
 
-#     response = chain.invoke({
-#         "level" : level,
-#         "field": field
-#     })
-    
-#     return response.content
+    return response
